@@ -35,12 +35,14 @@ pipeline {
                         returnStatus: true,
                         script: """
                             docker run --rm \
-                              -v "\${WORKSPACE}:/src" \
-                              -w /src \
-                              returntocorp/semgrep:latest semgrep scan \
-                              --config p/security-audit,p/owasp-top-ten,p/php \
-                              --metrics=off \
-                              --include '**' .
+                            -v "\${WORKSPACE}:/src" \
+                            -w /src \
+                            returntocorp/semgrep:latest semgrep scan \
+                            --config p/security-audit \
+                            --config p/owasp-top-ten \
+                            --config p/php \
+                            --metrics=off \
+                            --include '**' .
                         """
                     )
 

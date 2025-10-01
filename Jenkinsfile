@@ -36,9 +36,26 @@ pipeline {
                     -v $WORKSPACE:/src \
                     returntocorp/semgrep semgrep \
                     --config "p/owasp-top-ten" \
-                    --error \
+                    --auto \
                     /src \
                     --json > $WORKSPACE/semgrep-report.json
+                '''
+                // Verifica si hay hallazgos y falla el pipeline si existen
+                sh '''
+                python3 - <<EOF
+                    import json
+                    import sys
+
+                    report_file = "$WORKSPACE/semgrep-report.json"
+                    with open(report_file) as f:
+                        data = json.load(f)
+
+                    if data.get("results"):
+                        print("⚠️ Semgrep found issues, failing the build!")
+                        for r in data["results"]:
+                            print(f'{r.get("check_id")} | {r.get("path")} | {r.get("start")}-{r.get("end")} | {r.get("extra", {}).get("message")}')
+                        sys.exit(1)
+                    EOF
                 '''
             }
         }

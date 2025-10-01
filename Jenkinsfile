@@ -9,6 +9,7 @@ pipeline {
                 sh 'php --version'
             }
         }
+
         stage('Compilation') {
             agent {
                 docker { image 'php:8.2-cli' }
@@ -17,6 +18,7 @@ pipeline {
                 sh 'echo "Compilando..."'
             }
         }
+
         stage('Build') {
             agent {
                 docker { image 'php:8.2-cli' }
@@ -25,9 +27,10 @@ pipeline {
                 sh 'echo "docker build -t my-php-app ."'
             }
         }
+
         stage('Semgrep Security Scan') {
+            agent any   // 🔹 Necesario porque arriba pusiste agent none
             steps {
-                // Usando contenedor oficial
                 sh '''
                 docker run --rm -v $PWD:/src returntocorp/semgrep semgrep \
                     --config "p/owasp-top-ten" \
@@ -38,15 +41,13 @@ pipeline {
         }
 
         stage('Publish Report') {
+            agent any   // 🔹 También requiere un nodo
             steps {
-                publishHTML([ 
-                    allowMissing: false,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: '.',
-                    reportFiles: 'semgrep-report.json',
-                    reportName: 'Semgrep Security Report'
-                ])
+                // Si solo quieres guardar el JSON como artefacto
+                archiveArtifacts artifacts: 'semgrep-report.json', fingerprint: true
+
+                // Si tienes plugin Warnings NG, puedes interpretar findings así:
+                // recordIssues tools: [semgrep(pattern: 'semgrep-report.json')]
             }
         }
 

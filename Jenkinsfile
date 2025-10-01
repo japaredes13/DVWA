@@ -29,7 +29,7 @@ pipeline {
         }
 
         stage('Semgrep Security Scan') {
-            agent any
+            agent any  // Necesario porque agent none no permite steps que requieren nodo
             steps {
                 sh '''
                 docker run --rm \
@@ -37,19 +37,17 @@ pipeline {
                     returntocorp/semgrep semgrep \
                     --config "p/owasp-top-ten" \
                     --error \
-                    --json /src > semgrep-report.json
+                    /src \
+                    --json > $WORKSPACE/semgrep-report.json
                 '''
             }
         }
 
-        stage('Publish Report') {
-            agent any   // 🔹 También requiere un nodo
+        stage('Publish Semgrep Report') {
+            agent any
             steps {
-                // Si solo quieres guardar el JSON como artefacto
                 archiveArtifacts artifacts: 'semgrep-report.json', fingerprint: true
-
-                // Si tienes plugin Warnings NG, puedes interpretar findings así:
-                // recordIssues tools: [semgrep(pattern: 'semgrep-report.json')]
+                sh 'echo "Semgrep report archived at $WORKSPACE/semgrep-report.json"'
             }
         }
 

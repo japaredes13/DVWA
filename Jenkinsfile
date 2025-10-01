@@ -29,13 +29,15 @@ pipeline {
         }
 
         stage('Semgrep Security Scan') {
-            agent any   // 🔹 Necesario porque arriba pusiste agent none
+            agent any
             steps {
                 sh '''
-                docker run --rm -v $PWD:/src returntocorp/semgrep semgrep \
+                docker run --rm \
+                    -v $WORKSPACE:/src \
+                    returntocorp/semgrep semgrep \
                     --config "p/owasp-top-ten" \
                     --error \
-                    --json > semgrep-report.json
+                    --json /src > semgrep-report.json
                 '''
             }
         }

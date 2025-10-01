@@ -69,6 +69,7 @@ pipeline {
                                 --json \
                                 --output /output/semgrep-report.json \
                                 --verbose \
+                                --no-git-ignore \
                                 /src
                         """,
                         returnStatus: true
@@ -88,9 +89,9 @@ pipeline {
                     
                     // Mostrar información general
                     echo """
-╔═══════════════════════════════════════════════════════════╗
-║           REPORTE DE ANÁLISIS DE SEGURIDAD                ║
-╚═══════════════════════════════════════════════════════════╝
+                        ╔═══════════════════════════════════════════════════════════╗
+                        ║           REPORTE DE ANÁLISIS DE SEGURIDAD                ║
+                        ╚═══════════════════════════════════════════════════════════╝
                     """
                     
                     echo "📊 Total de problemas encontrados: ${results.size()}"
@@ -105,10 +106,10 @@ pipeline {
                     def mediumIssues = results.findAll { it.extra?.severity == 'INFO' }
                     
                     echo """
-📈 Distribución por severidad:
-   🔴 CRÍTICO (ERROR):   ${criticalIssues.size()}
-   🟠 ALTO (WARNING):    ${highIssues.size()}
-   🟡 MEDIO (INFO):      ${mediumIssues.size()}
+                        📈 Distribución por severidad:
+                            🔴 CRÍTICO (ERROR):   ${criticalIssues.size()}
+                            🟠 ALTO (WARNING):    ${highIssues.size()}
+                            🟡 MEDIO (INFO):      ${mediumIssues.size()}
                     """
                     
                     // Si hay resultados, mostrar detalles y fallar
@@ -122,12 +123,12 @@ pipeline {
                             echo "═══════════════════════════════════════════════════════════"
                             criticalIssues.eachWithIndex { r, index ->
                                 echo """
-[${index + 1}] ${r.check_id}
-    📁 Archivo: ${r.path}
-    📍 Línea: ${r.start?.line ?: 'N/A'} - ${r.end?.line ?: 'N/A'}
-    💬 ${r.extra?.message ?: 'Sin descripción'}
-    🔗 Más info: ${r.extra?.metadata?.source ?: 'N/A'}
-                                """.stripIndent()
+                                    [${index + 1}] ${r.check_id}
+                                        📁 Archivo: ${r.path}
+                                        📍 Línea: ${r.start?.line ?: 'N/A'} - ${r.end?.line ?: 'N/A'}
+                                        💬 ${r.extra?.message ?: 'Sin descripción'}
+                                        🔗 Más info: ${r.extra?.metadata?.source ?: 'N/A'}
+                                                                    """.stripIndent()
                             }
                         }
                         
@@ -138,11 +139,11 @@ pipeline {
                             echo "═══════════════════════════════════════════════════════════"
                             highIssues.eachWithIndex { r, index ->
                                 echo """
-[${index + 1}] ${r.check_id}
-    📁 Archivo: ${r.path}
-    📍 Línea: ${r.start?.line ?: 'N/A'} - ${r.end?.line ?: 'N/A'}
-    💬 ${r.extra?.message ?: 'Sin descripción'}
-                                """.stripIndent()
+                                    [${index + 1}] ${r.check_id}
+                                        📁 Archivo: ${r.path}
+                                        📍 Línea: ${r.start?.line ?: 'N/A'} - ${r.end?.line ?: 'N/A'}
+                                        💬 ${r.extra?.message ?: 'Sin descripción'}
+                                                                    """.stripIndent()
                             }
                         }
                         
@@ -167,9 +168,9 @@ pipeline {
                         error("Build detenido por problemas de seguridad detectados por Semgrep")
                     } else {
                         echo """
-╔═══════════════════════════════════════════════════════════╗
-║  ✅ ¡EXCELENTE! No se encontraron problemas de seguridad  ║
-╚═══════════════════════════════════════════════════════════╝
+                            ╔═══════════════════════════════════════════════════════════╗
+                            ║  ✅ ¡EXCELENTE! No se encontraron problemas de seguridad  ║
+                            ╚═══════════════════════════════════════════════════════════╝
                         """
                     }
                 }
@@ -236,38 +237,38 @@ pipeline {
         always {
             script {
                 echo """
-╔═══════════════════════════════════════════════════════════╗
-║                  RESUMEN DEL PIPELINE                     ║
-╠═══════════════════════════════════════════════════════════╣
-║  Estado: ${currentBuild.result ?: 'SUCCESS'}
-║  Duración: ${currentBuild.durationString}
-╚═══════════════════════════════════════════════════════════╝
+                    ╔═══════════════════════════════════════════════════════════╗
+                    ║                  RESUMEN DEL PIPELINE                     ║
+                    ╠═══════════════════════════════════════════════════════════╣
+                    ║  Estado: ${currentBuild.result ?: 'SUCCESS'}
+                    ║  Duración: ${currentBuild.durationString}
+                    ╚═══════════════════════════════════════════════════════════╝
                 """
             }
         }
         failure {
             script {
                 echo """
-❌ PIPELINE FALLIDO
-═══════════════════════════════════════════════════════════
-Por favor revisa:
-  1. Los logs de Semgrep arriba
-  2. El archivo semgrep-report.json en los artefactos
-  3. Corrige las vulnerabilidades antes de hacer merge/deploy
-═══════════════════════════════════════════════════════════
+                    ❌ PIPELINE FALLIDO
+                    ═══════════════════════════════════════════════════════════
+                    Por favor revisa:
+                    1. Los logs de Semgrep arriba
+                    2. El archivo semgrep-report.json en los artefactos
+                    3. Corrige las vulnerabilidades antes de hacer merge/deploy
+                    ═══════════════════════════════════════════════════════════
                 """
             }
         }
         success {
             script {
                 echo """
-✅ PIPELINE EXITOSO
-═══════════════════════════════════════════════════════════
-Todo en orden:
-  ✓ Código analizado
-  ✓ Sin vulnerabilidades detectadas
-  ✓ Listo para despliegue
-═══════════════════════════════════════════════════════════
+                    ✅ PIPELINE EXITOSO
+                    ═══════════════════════════════════════════════════════════
+                    Todo en orden:
+                    ✓ Código analizado
+                    ✓ Sin vulnerabilidades detectadas
+                    ✓ Listo para despliegue
+                    ═══════════════════════════════════════════════════════════
                 """
             }
         }

@@ -1,54 +1,85 @@
 pipeline {
-    agent any
-
+    agent none
+    
     environment {
         SEMGREP_IMAGE = 'returntocorp/semgrep:latest'
-        SEMGREP_RULES = 'p/owasp-top-ten'  // podés cambiar por p/security-audit o p/ci
+        SEMGREP_RULES = 'p/security-audit'
     }
-
+    
     stages {
         stage('Checkout') {
+            agent any
             steps {
                 checkout scm
+                sh 'ls -la'
             }
         }
 
-        stage('Semgrep Security Scan') {
+        stage('Build') {
+            agent {
+                docker { 
+                    image 'php:8.2-cli'
+                    args '-u root'
+                }
+            }
+            steps {
+                sh 'php --version'
+                sh 'echo "Compilando proyecto..."'
+                // Si usas Composer: sh 'composer install --no-dev'
+            }
+        }
+
+        stage('Security Scan') {
+            agent any
             steps {
                 script {
-                    // Ejecutar semgrep dentro del contenedor
-                    def exitCode = sh(
-                        script: """
-                            docker run --rm \
-                                -v \${WORKSPACE}:/src \
-                                ${SEMGREP_IMAGE} semgrep scan \
-                                --config "${SEMGREP_RULES}" \
-                                --json --output /src/semgrep-report.json \
-                                --error --metrics=off /src
-                        """,
-                        returnStatus: true
-                    )
-
-                    // Leer reporte JSON
+                    echo "🔍 Ejecutando análisis de seguridad con Semgrep..."
+                    
+                    // Ejecutar Semgrep
+                    sh """
+                        docker run --rm \
+                            -v \${WORKSPACE}:/src \
+                            -w /src \
+                            ${env.SEMGREP_IMAGE} \
+                            semgrep scan \
+                            --config ${env.SEMGREP_RULES} \
+                            --json \
+                            --output semgrep-report.json \
+                            --no-git-ignore \
+                            --metrics=off \
+                            .
+                    """
+                    
+                    // Analizar resultados
                     def report = readJSON file: 'semgrep-report.json'
-                    def results = report.results ?: []
-
-                    echo "📊 Total de hallazgos: ${results.size()}"
-
-                    // Mostrar resumen en consola
-                    results.take(10).eachWithIndex { r, i ->
-                        echo "[${i+1}] ${r.check_id} en ${r.path}:${r.start?.line} - ${r.extra?.message}"
+                    def findings = report.results ?: []
+                    def scannedFiles = report.paths?.scanned ?: []
+                    
+                    echo "📊 Archivos escaneados: ${scannedFiles.size()}"
+                    echo "🔍 Vulnerabilidades encontradas: ${findings.size()}"
+                    
+                    // Si no se escanearon archivos, fallar
+                    if (scannedFiles.size() == 0) {
+                        error("❌ No se escaneó ningún archivo. Verifica el contenido del workspace.")
                     }
-                    if (results.size() > 10) {
-                        echo "... y ${results.size() - 10} más (ver semgrep-report.json)"
+                    
+                    // Si hay vulnerabilidades, mostrarlas y fallar
+                    if (findings.size() > 0) {
+                        echo "\n⚠️  VULNERABILIDADES DETECTADAS:\n"
+                        
+                        findings.each { issue ->
+                            def severity = issue.extra?.severity ?: 'UNKNOWN'
+                            def icon = severity == 'ERROR' ? '🔴' : severity == 'WARNING' ? '🟠' : '🟡'
+                            
+                            echo "${icon} [${severity}] ${issue.check_id}"
+                            echo "   📁 ${issue.path}:${issue.start?.line ?: '?'}"
+                            echo "   💬 ${issue.extra?.message ?: 'Sin descripción'}\n"
+                        }
+                        
+                        error("❌ Build fallido: ${findings.size()} problema(s) de seguridad detectados")
                     }
-
-                    // Si hay findings, falla el pipeline
-                    if (results.size() > 0) {
-                        error("❌ Se encontraron vulnerabilidades, el deploy no continuará.")
-                    } else {
-                        echo "✅ No se encontraron problemas de seguridad"
-                    }
+                    
+                    echo "✅ No se encontraron vulnerabilidades"
                 }
             }
             post {
@@ -58,33 +89,33 @@ pipeline {
             }
         }
 
-        stage('Build') {
-            when {
-                expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
-            }
-            steps {
-                echo "⚙️ Construyendo la aplicación..."
-                sh 'docker build -t my-app .'
-            }
-        }
-
         stage('Deploy') {
+            agent {
+                docker { 
+                    image 'php:8.2-cli'
+                    args '-u root'
+                }
+            }
             when {
                 expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
             }
             steps {
                 echo "🚀 Desplegando aplicación..."
-                sh 'docker run -d -p 8080:80 my-app'
+                sh 'echo "docker run -d my-php-app"'
             }
         }
     }
-
+    
     post {
         failure {
-            echo "❌ Pipeline fallido. Revisa los hallazgos de Semgrep antes de volver a ejecutar."
+            script {
+                echo "❌ Pipeline fallido. Revisa el reporte de Semgrep en los artefactos."
+            }
         }
         success {
-            echo "✅ Pipeline exitoso. La aplicación fue desplegada."
+            script {
+                echo "✅ Pipeline completado exitosamente"
+            }
         }
     }
 }

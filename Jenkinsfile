@@ -25,6 +25,31 @@ pipeline {
                 sh 'echo "docker build -t my-php-app ."'
             }
         }
+        stage('Semgrep Security Scan') {
+            steps {
+                // Usando contenedor oficial
+                sh '''
+                docker run --rm -v $PWD:/src returntocorp/semgrep semgrep \
+                    --config "p/owasp-top-ten" \
+                    --error \
+                    --json > semgrep-report.json
+                '''
+            }
+        }
+
+        stage('Publish Report') {
+            steps {
+                publishHTML([ 
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: '.',
+                    reportFiles: 'semgrep-report.json',
+                    reportName: 'Semgrep Security Report'
+                ])
+            }
+        }
+
         stage('Deploy') {
             agent {
                 docker { image 'php:8.2-cli' }

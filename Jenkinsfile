@@ -234,7 +234,7 @@ pipeline {
     
     post {
         always {
-            node('master') {
+            script {
                 echo """
 ╔═══════════════════════════════════════════════════════════╗
 ║                  RESUMEN DEL PIPELINE                     ║
@@ -246,7 +246,7 @@ pipeline {
             }
         }
         failure {
-            node('master') {
+            script {
                 echo """
 ❌ PIPELINE FALLIDO
 ═══════════════════════════════════════════════════════════
@@ -259,7 +259,7 @@ Por favor revisa:
             }
         }
         success {
-            node('master') {
+            script {
                 echo """
 ✅ PIPELINE EXITOSO
 ═══════════════════════════════════════════════════════════

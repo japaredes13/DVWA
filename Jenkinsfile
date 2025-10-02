@@ -19,6 +19,13 @@ pipeline {
                 cleanWs()
                 checkout scm
                 echo "📦 Proyecto clonado en workspace: ${env.WORKSPACE}"
+                checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: '*/master']],
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions: [[$class: 'CloneOption', depth: 0, noTags: false, reference: '', shallow: false]],
+                        userRemoteConfigs: [[url: 'https://github.com/japaredes13/DVWA.git']]
+                    ])
             }
         }
 

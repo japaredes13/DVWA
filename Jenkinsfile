@@ -44,7 +44,9 @@ pipeline {
                             --json \
                             --output semgrep-report.json \
                             --metrics=off \
-                            --include '**' \
+                            --scan-unknown-extensions \
+                            --no-git-ignore \
+                            --include '**/*.php' \
                             .
                     """
 

@@ -44,6 +44,7 @@ pipeline {
                             --json \
                             --output semgrep-report.json \
                             --metrics=off \
+                            --include '**' \
                             .
                     """
 

@@ -34,20 +34,21 @@ pipeline {
 
                     sh """
                         docker run --rm \
-                            -v "\${WORKSPACE}:/src" \
-                            -w /src \
-                            returntocorp/semgrep:latest \
-                            semgrep scan \
-                            --config p/security-audit \
-                            --config p/owasp-top-ten \
-                            --config p/php \
-                            --json \
-                            --output semgrep-report.json \
-                            --metrics=off \
-                            --scan-unknown-extensions \
-                            --no-git-ignore \
-                            --include '**/*.php' \
-                            .
+                        -v "\${WORKSPACE}:/src" \
+                        -w /src \
+                        returntocorp/semgrep:latest \
+                        semgrep scan \
+                        --config p/security-audit \
+                        --config p/owasp-top-ten \
+                        --config p/php \
+                        --json \
+                        --output semgrep-report.json \
+                        --metrics=off \
+                        --scan-unknown-extensions \
+                        --no-git-ignore \
+                        --include '**' \
+                        --verbose \
+                        .
                     """
 
                     // Validar si existe el reporte

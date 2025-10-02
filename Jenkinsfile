@@ -32,26 +32,25 @@ pipeline {
                 script {
                     echo "🔍 Ejecutando Semgrep..."
 
-                    def exitCode = sh(
-                        returnStatus: true,
-                        script: """
-                            docker run --rm \
-                                -v "\${WORKSPACE}:/src" \
-                                -w /src \
-                                returntocorp/semgrep:latest \
-                                semgrep scan \
-                                --config p/security-audit \
-                                --config p/owasp-top-ten \
-                                --config p/php \
-                                --json \
-                                --output semgrep-report.json \
-                                --metrics=off \
-                                --quiet \
-                                .
-                        """
-                    )
-                    
-                    echo "📊 Código de salida de Semgrep: ${exitCode}"
+                    sh """
+                        docker run --rm \
+                            -v "\${WORKSPACE}:/src" \
+                            -w /src \
+                            returntocorp/semgrep:latest \
+                            semgrep scan \
+                            --config p/security-audit \
+                            --config p/owasp-top-ten \
+                            --config p/php \
+                            --json \
+                            --output semgrep-report.json \
+                            --metrics=off \
+                            .
+                    """
+
+                    // Validar si existe el reporte
+                    if (!fileExists('semgrep-report.json')) {
+                        error("❌ Semgrep no generó reporte JSON")
+                    }
                     
                     // Leer reporte
                     def report = readJSON file: 'semgrep-report.json'

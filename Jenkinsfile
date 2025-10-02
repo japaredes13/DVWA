@@ -27,30 +27,46 @@ pipeline {
             }
         }
 
-        stage('Security Scan - Semgrep') {
+        stage('Security Scan') {
             steps {
                 script {
                     echo "🔍 Ejecutando Semgrep..."
-                    def status = sh(
-                        returnStatus: true,
-                        script: """
-                            docker run --rm \
+                    
+                    sh """
+                        docker run --rm \
                             -v "\${WORKSPACE}:/src" \
                             -w /src \
-                            returntocorp/semgrep:latest semgrep scan \
+                            returntocorp/semgrep:latest \
+                            semgrep scan \
                             --config p/security-audit \
                             --config p/owasp-top-ten \
                             --config p/php \
+                            --json \
+                            --output semgrep-report.json \
                             --metrics=off \
-                            --include '**' .
-                        """
-                    )
-
-                    if (status != 0) {
-                        error("❌ Se detectaron vulnerabilidades con Semgrep")
-                    } else {
-                        echo "✅ Semgrep no encontró vulnerabilidades críticas"
+                            .
+                    """
+                    
+                    // Leer reporte
+                    def report = readJSON file: 'semgrep-report.json'
+                    def findings = report.results ?: []
+                    def scanned = report.paths?.scanned ?: []
+                    
+                    echo "📊 Archivos: ${scanned.size()}"
+                    echo "🔍 Vulnerabilidades: ${findings.size()}"
+                    
+                    // Fallar si hay vulnerabilidades
+                    if (findings.size() > 0) {
+                        echo "⚠️  Se encontraron ${findings.size()} vulnerabilidades"
+                        
+                        findings.take(5).each { issue ->
+                            echo "  • ${issue.check_id} en ${issue.path}:${issue.start?.line}"
+                        }
+                        
+                        error("❌ Build fallido por vulnerabilidades")
                     }
+                    
+                    echo "✅ Sin vulnerabilidades"
                 }
             }
         }

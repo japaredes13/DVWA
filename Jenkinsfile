@@ -2,8 +2,6 @@ pipeline {
     agent any
     
     environment {
-        // Definir variables de entorno
-        SEMGREP_VERSION = 'latest'
         REPORT_DIR = 'reports'
         SEMGREP_REPORT = 'semgrep-results.json'
     }
@@ -13,10 +11,7 @@ pipeline {
             steps {
                 script {
                     echo '📦 Descargando código fuente de DVWA...'
-                    // Si DVWA está en un repositorio Git
                     checkout scm
-                    // O puedes clonar desde GitHub:
-                    // git url: 'https://github.com/digininja/DVWA.git', branch: 'master'
                 }
             }
         }
@@ -25,41 +20,29 @@ pipeline {
             steps {
                 script {
                     echo '🔧 Preparando entorno de análisis...'
-                    // Crear directorio para reportes
                     sh "mkdir -p ${REPORT_DIR}"
-                    
-                    // Verificar versión de Python (Semgrep requiere Python)
-                    sh 'python3 --version || python --version'
-                }
-            }
-        }
-        
-        stage('Instalar Semgrep') {
-            steps {
-                script {
-                    echo '⚙️ Instalando Semgrep...'
-                    // Instalar Semgrep usando pip
-                    sh '''
-                        pip3 install semgrep || pip install semgrep
-                        semgrep --version
-                    '''
                 }
             }
         }
         
         stage('Análisis SAST con Semgrep') {
+            agent {
+                docker {
+                    image 'semgrep/semgrep:latest'
+                    args '-v ${WORKSPACE}:/src --entrypoint=""'
+                    reuseNode true
+                }
+            }
             steps {
                 script {
                     echo '🔍 Ejecutando análisis de seguridad con Semgrep...'
-                    // Ejecutar Semgrep con reglas automáticas
                     sh """
                         semgrep scan \
                             --config=auto \
                             --json \
-                            --output=${REPORT_DIR}/${SEMGREP_REPORT} \
-                            . || true
+                            --output=/src/${REPORT_DIR}/${SEMGREP_REPORT} \
+                            /src || true
                     """
-                    
                     echo '✅ Análisis de Semgrep completado'
                 }
             }
@@ -70,15 +53,12 @@ pipeline {
                 script {
                     echo '📊 Procesando resultados del análisis...'
                     
-                    // Verificar si el archivo fue generado
                     sh """
                         if [ -f ${REPORT_DIR}/${SEMGREP_REPORT} ]; then
                             echo "✓ Reporte generado exitosamente"
                             echo "Ubicación: ${REPORT_DIR}/${SEMGREP_REPORT}"
-                            
-                            # Mostrar resumen de vulnerabilidades
-                            echo "=== RESUMEN DE VULNERABILIDADES ==="
-                            cat ${REPORT_DIR}/${SEMGREP_REPORT} | python3 -m json.tool | head -50
+                            echo "Tamaño del archivo:"
+                            ls -lh ${REPORT_DIR}/${SEMGREP_REPORT}
                         else
                             echo "✗ Error: No se generó el reporte"
                             exit 1
@@ -92,7 +72,6 @@ pipeline {
             steps {
                 script {
                     echo '💾 Archivando resultados...'
-                    // Archivar el reporte JSON en Jenkins
                     archiveArtifacts artifacts: "${REPORT_DIR}/*.json", 
                                      fingerprint: true,
                                      allowEmptyArchive: false
@@ -105,18 +84,17 @@ pipeline {
                 script {
                     echo '⚠️ Evaluando nivel de seguridad...'
                     
-                    // Opcional: Fallar el build si hay vulnerabilidades críticas
                     sh """
                         # Contar vulnerabilidades por severidad
-                        HIGH_VULN=\$(cat ${REPORT_DIR}/${SEMGREP_REPORT} | grep -o '"severity":"ERROR"' | wc -l || echo 0)
-                        MEDIUM_VULN=\$(cat ${REPORT_DIR}/${SEMGREP_REPORT} | grep -o '"severity":"WARNING"' | wc -l || echo 0)
+                        HIGH_VULN=\$(grep -o '"severity":"ERROR"' ${REPORT_DIR}/${SEMGREP_REPORT} | wc -l || echo 0)
+                        MEDIUM_VULN=\$(grep -o '"severity":"WARNING"' ${REPORT_DIR}/${SEMGREP_REPORT} | wc -l || echo 0)
                         
                         echo "Vulnerabilidades CRÍTICAS: \$HIGH_VULN"
                         echo "Vulnerabilidades MEDIAS: \$MEDIUM_VULN"
                         
-                        # Opcional: Descomentar para fallar el build si hay vulnerabilidades críticas
+                        # Opcional: Descomentar para fallar el build
                         # if [ \$HIGH_VULN -gt 0 ]; then
-                        #     echo "❌ Build fallido: Se encontraron \$HIGH_VULN vulnerabilidades críticas"
+                        #     echo "❌ Build fallido: \$HIGH_VULN vulnerabilidades críticas"
                         #     exit 1
                         # fi
                     """
@@ -128,7 +106,6 @@ pipeline {
     post {
         always {
             echo '🧹 Limpiando workspace...'
-            // Limpiar archivos temporales si es necesario
         }
         success {
             echo '✅ Pipeline ejecutado exitosamente'

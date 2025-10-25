@@ -40,7 +40,7 @@ pipeline {
                         semgrep scan \
                             --config=auto \
                             --json \
-                            --output=/src/${REPORT_DIR}/${SEMGREP_REPORT} \
+                            --output=${REPORT_DIR}/${SEMGREP_REPORT} \
                             /src || true
                     """
                     echo '✅ Análisis de Semgrep completado'

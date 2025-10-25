@@ -1,118 +1,55 @@
 pipeline {
     agent any
-    
-    environment {
-        REPORT_DIR = 'reports'
-        SEMGREP_REPORT = 'semgrep-results.json'
-    }
-    
     stages {
-        stage('Checkout') {
-            steps {
-                script {
-                    echo '📦 Descargando código fuente de DVWA...'
-                    checkout scm
-                }
-            }
-        }
-        
-        stage('Preparar Entorno') {
-            steps {
-                script {
-                    echo '🔧 Preparando entorno de análisis...'
-                    sh "mkdir -p ${REPORT_DIR}"
-                }
-            }
-        }
-        
-        stage('Análisis SAST con Semgrep') {
+        stage('SAST-Semgrep') {
             agent {
                 docker {
-                    image 'semgrep/semgrep:latest'
-                    args '-v ${WORKSPACE}:/src --entrypoint=""'
-                    reuseNode true
+                    image 'python:3.11-slim' //utilizamos la imagen que contine python y pip instalados
+                    args '-u root' //para ejecutar los comandos como root y evitar problemas de permisos (esto es una mala práctica y lo ideal sería crear una imagen con las herramientas necesarias ya instaladas)
                 }
             }
             steps {
-                script {
-                    echo '🔍 Ejecutando análisis de seguridad con Semgrep...'
-                    sh """
-                        semgrep scan \
-                            --config=auto \
-                            --json \
-                            --output=${REPORT_DIR}/${SEMGREP_REPORT} \
-                            /src || true
-                    """
-                    echo '✅ Análisis de Semgrep completado'
+                script{
+                    sh 'apt-get update && apt-get install -qq -y git'
+                    sh 'git config --global --add safe.directory $(pwd)'
+                    sh 'pip install -q semgrep'
+                    try {
+                        sh 'semgrep scan --json-output=semgrep.json --error .' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
+                    }
+                    catch (err) {                                        
+                        unstable(message: "Findings found") // marcamos el build como inestable si semgrep encuentra vulnerabilidades o si queremos bloquearlo podemos usar "error" en lugar de "unstable"
+                    }
                 }
             }
-        }
-        
-        stage('Procesar Resultados') {
+        }        
+        stage('Compilation') {
+            agent {
+                docker { image 'php:8.2-cli' }
+            }
             steps {
-                script {
-                    echo '📊 Procesando resultados del análisis...'
-                    
-                    sh """
-                        if [ -f ${REPORT_DIR}/${SEMGREP_REPORT} ]; then
-                            echo "✓ Reporte generado exitosamente"
-                            echo "Ubicación: ${REPORT_DIR}/${SEMGREP_REPORT}"
-                            echo "Tamaño del archivo:"
-                            ls -lh ${REPORT_DIR}/${SEMGREP_REPORT}
-                        else
-                            echo "✗ Error: No se generó el reporte"
-                            exit 1
-                        fi
-                    """
-                }
+                sh 'echo "Compilando..."'
             }
         }
-        
-        stage('Archivar Resultados') {
+        stage('Build') {
+            agent {
+                docker { image 'php:8.2-cli' }
+            }
             steps {
-                script {
-                    echo '💾 Archivando resultados...'
-                    archiveArtifacts artifacts: "${REPORT_DIR}/*.json", 
-                                     fingerprint: true,
-                                     allowEmptyArchive: false
-                }
+                sh 'echo "docker build -t my-php-app ."'
             }
         }
-        
-        stage('Evaluación de Seguridad') {
+        stage('Deploy') {
+            agent {
+                docker { image 'php:8.2-cli' }
+            }
             steps {
-                script {
-                    echo '⚠️ Evaluando nivel de seguridad...'
-                    
-                    sh """
-                        # Contar vulnerabilidades por severidad
-                        HIGH_VULN=\$(grep -o '"severity":"ERROR"' ${REPORT_DIR}/${SEMGREP_REPORT} | wc -l || echo 0)
-                        MEDIUM_VULN=\$(grep -o '"severity":"WARNING"' ${REPORT_DIR}/${SEMGREP_REPORT} | wc -l || echo 0)
-                        
-                        echo "Vulnerabilidades CRÍTICAS: \$HIGH_VULN"
-                        echo "Vulnerabilidades MEDIAS: \$MEDIUM_VULN"
-                        
-                        # Opcional: Descomentar para fallar el build
-                        # if [ \$HIGH_VULN -gt 0 ]; then
-                        #     echo "❌ Build fallido: \$HIGH_VULN vulnerabilidades críticas"
-                        #     exit 1
-                        # fi
-                    """
-                }
+                sh 'echo "docker run my-php-app ."'
             }
         }
     }
-    
     post {
         always {
-            echo '🧹 Limpiando workspace...'
-        }
-        success {
-            echo '✅ Pipeline ejecutado exitosamente'
-            echo "📄 Reporte disponible en: ${REPORT_DIR}/${SEMGREP_REPORT}"
-        }
-        failure {
-            echo '❌ Pipeline falló. Revisa los logs para más detalles.'
+            archiveArtifacts artifacts: 'semgrep.json', fingerprint: true // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
         }
     }
 }

@@ -14,7 +14,7 @@ pipeline {
                     sh 'git config --global --add safe.directory $(pwd)'
                     sh 'pip install -q semgrep'
                     try {
-                        sh 'semgrep scan --json-output=$WORKSAPCE/semgrep.json --error .' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
+                        sh 'semgrep scan --json-output=$WORKSPACE/semgrep.json --error .' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
                     }
                     catch (err) {                                        
                         unstable(message: "Findings found") // marcamos el build como inestable si semgrep encuentra vulnerabilidades o si queremos bloquearlo podemos usar "error" en lugar de "unstable"

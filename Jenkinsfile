@@ -1,5 +1,8 @@
 pipeline {
     agent any
+    environment {
+        SEMGREP_FILE = "${WORKSPACE}/semgrep.json"
+    }
     stages {
         stage('SAST-Semgrep') {
             agent {
@@ -14,8 +17,16 @@ pipeline {
                     sh 'git config --global --add safe.directory $(pwd)'
                     sh 'pip install -q semgrep'
                     try {
-                        sh 'semgrep scan --json-output=${WORKSPACE}/semgrep.json --error .' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
+                        sh 'semgrep scan --json-output=${SEMGREP_FILE} --error . || true' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
                         sh 'ls -lah ${WORKSPACE}'
+                        sh '''
+                            if [ -f "${SEMGREP_FILE}" ]; then
+                                echo "📊 Resumen de hallazgos Semgrep:"
+                                jq '.results | group_by(.severity) | map({severity: .[0].severity, count: length})' ${SEMGREP_FILE} || echo "No se pudieron procesar los hallazgos"
+                            else
+                                echo "⚠️ Archivo Semgrep no encontrado."
+                            fi
+                        '''
                     }
                     catch (err) {                                        
                         unstable(message: "Findings found") // marcamos el build como inestable si semgrep encuentra vulnerabilidades o si queremos bloquearlo podemos usar "error" en lugar de "unstable"

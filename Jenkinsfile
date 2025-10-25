@@ -13,6 +13,11 @@ pipeline {
                     sh 'apt-get update && apt-get install -qq -y git'
                     sh 'git config --global --add safe.directory $(pwd)'
                     sh 'pip install -q semgrep'
+                    sh '''
+                      echo "Workspace path: $WORKSPACE"
+                      echo "Contenido inicial:"
+                      ls -l $WORKSPACE
+                    '''
                     try {
                         sh 'semgrep scan --json-output=$WORKSPACE/semgrep.json --error .' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
                     }
@@ -49,7 +54,7 @@ pipeline {
     }
     post {
         always {
-            archiveArtifacts artifacts: 'semgrep.json', fingerprint: true // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
+            archiveArtifacts artifacts: 'semgrep.json', fingerprint: true, onlyIfSuccessful: false // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
         }
     }
 }

@@ -22,7 +22,9 @@ pipeline {
 
                     sh 'echo "🚀 Ejecutando análisis Semgrep..."'
                     try {
-                        sh 'semgrep scan --json-output=$WORKSPACE/semgrep.json --error .' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
+                        sh 'semgrep scan --config=auto --json --error . > semgrep.json || true' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
+                        sh 'echo "✅ Archivo generado:"'
+                        sh 'ls -lh semgrep.json || echo "No existe semgrep.json"'
                     }
                     catch (err) {                                        
                         unstable(message: "Findings found") // marcamos el build como inestable si semgrep encuentra vulnerabilidades o si queremos bloquearlo podemos usar "error" en lugar de "unstable"
@@ -57,7 +59,7 @@ pipeline {
     }
     post {
         always {
-            sh 'ls -lah $WORKSPACE || true'
+            sh 'ls -lh || true'
             archiveArtifacts artifacts: 'semgrep.json', fingerprint: true, onlyIfSuccessful: false // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
         }
     }

@@ -5,7 +5,7 @@ pipeline {
             agent {
                 docker {
                     image 'python:3.11-slim' //utilizamos la imagen que contine python y pip instalados
-                    args '-u root -v ${WORKSPACE}:${WORKSPACE}' //para ejecutar los comandos como root y evitar problemas de permisos (esto es una mala práctica y lo ideal sería crear una imagen con las herramientas necesarias ya instaladas)
+                    args "-u root -v ${WORKSPACE}:${WORKSPACE}" //para ejecutar los comandos como root y evitar problemas de permisos (esto es una mala práctica y lo ideal sería crear una imagen con las herramientas necesarias ya instaladas)
                 }
             }
             steps {
@@ -54,7 +54,7 @@ pipeline {
     }
     post {
         always {
-            archiveArtifacts artifacts: 'semgrep.json', fingerprint: true, onlyIfSuccessful: false // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
+            archiveArtifacts artifacts: '**/semgrep.json', fingerprint: true, onlyIfSuccessful: false // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
         }
     }
 }

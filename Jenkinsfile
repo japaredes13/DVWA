@@ -1,14 +1,15 @@
 pipeline {
     agent any
     environment {
-        SEMGREP_FILE = "${WORKSPACE}/semgrep.json"
+        SEMGREP_FILE = "semgrep.json"  // Ruta relativa para consistencia
     }
     stages {
         stage('SAST-Semgrep') {
             agent {
                 docker {
                     image 'python:3.11-slim' //utilizamos la imagen que contine python y pip instalados
-                    args "-u root -v ${WORKSPACE}:${WORKSPACE} -w ${WORKSPACE}" //para ejecutar los comandos como root y evitar problemas de permisos (esto es una mala práctica y lo ideal sería crear una imagen con las herramientas necesarias ya instaladas)
+                    reuseNode true
+                    args "-u root" //para ejecutar los comandos como root y evitar problemas de permisos (esto es una mala práctica y lo ideal sería crear una imagen con las herramientas necesarias ya instaladas)
                 }
             }
             steps {

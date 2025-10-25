@@ -1,22 +1,22 @@
 pipeline {
     agent any
+    environment {
+        SEMGREP_DIR = "${WORKSPACE}/semgrep-reports"
+    }
     stages {
         stage('SAST-Semgrep') {
-            agent {
-                docker {
-                    image 'python:3.11-slim' //utilizamos la imagen que contine python y pip instalados
-                    args "-u root -v ${WORKSPACE}:${WORKSPACE} -w ${WORKSPACE}" //para ejecutar los comandos como root y evitar problemas de permisos (esto es una mala práctica y lo ideal sería crear una imagen con las herramientas necesarias ya instaladas)
-                }
-            }
             steps {
                 script{
                     sh 'apt-get update && apt-get install -qq -y git'
                     sh 'git config --global --add safe.directory $(pwd)'
                     sh 'pip install -q semgrep'
 
+                    sh 'echo "Creando directorio para reportes..."'
+                    sh 'mkdir -p $SEMGREP_DIR'
+
                     sh 'echo "🚀 Ejecutando análisis Semgrep..."'
                     try {
-                        sh 'semgrep scan --config=auto --json --error . > semgrep.json || true' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
+                        sh 'semgrep scan --config=auto --json --error . > $SEMGREP_DIR/semgrep.json || true' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
                         sh 'echo "✅ Archivo generado:"'
                         sh 'ls -lh semgrep.json || echo "No existe semgrep.json"'
                     }
@@ -54,7 +54,7 @@ pipeline {
     post {
         always {
             sh 'ls -lh || true'
-            archiveArtifacts artifacts: 'semgrep.json', fingerprint: true, onlyIfSuccessful: false // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
+            archiveArtifacts artifacts: 'semgrep-reports/semgrep.json', fingerprint: true, onlyIfSuccessful: false // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
         }
     }
 }

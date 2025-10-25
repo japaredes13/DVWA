@@ -16,8 +16,11 @@ pipeline {
                     sh '''
                       echo "Workspace path: $WORKSPACE"
                       echo "Contenido inicial:"
-                      ls -l $WORKSPACE
+                      ls -lah $WORKSPACE || true
                     '''
+                    
+
+                    sh 'echo "🚀 Ejecutando análisis Semgrep..."'
                     try {
                         sh 'semgrep scan --json-output=$WORKSPACE/semgrep.json --error .' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
                     }
@@ -54,7 +57,8 @@ pipeline {
     }
     post {
         always {
-            archiveArtifacts artifacts: '**/semgrep.json', fingerprint: true, onlyIfSuccessful: false // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
+            sh 'ls -lah $WORKSPACE || true'
+            archiveArtifacts artifacts: 'semgrep.json', fingerprint: true, onlyIfSuccessful: false // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
         }
     }
 }

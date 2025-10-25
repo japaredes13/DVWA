@@ -50,7 +50,8 @@ pipeline {
     post {
         always {
             sh 'echo "📦 Archivando reporte Semgrep..."'
-            archiveArtifacts artifacts: 'semgrep.json', fingerprint: true // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
+            sh 'ls -l' // Verificación de archivos generados
+            archiveArtifacts artifacts: 'semgrep.json', fingerprint: true, onlyIfSuccessful: false // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
         }
     }
 }

@@ -8,7 +8,7 @@ pipeline {
             agent {
                 docker {
                     image 'python:3.11-slim' //utilizamos la imagen que contine python y pip instalados
-                    args "-u root -v ${env.WORKSPACE}:${env.WORKSPACE} -w ${env.WORKSPACE}" //para ejecutar los comandos como root y evitar problemas de permisos (esto es una mala práctica y lo ideal sería crear una imagen con las herramientas necesarias ya instaladas)
+                    args "-u root -v ${WORKSPACE}:${WORKSPACE} -w ${WORKSPACE}" //para ejecutar los comandos como root y evitar problemas de permisos (esto es una mala práctica y lo ideal sería crear una imagen con las herramientas necesarias ya instaladas)
                 }
             }
             steps {
@@ -19,14 +19,6 @@ pipeline {
                     try {
                         sh 'semgrep scan --json-output=${SEMGREP_FILE} --error . || true' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
                         sh 'ls -lah ${WORKSPACE}'
-                        sh '''
-                            if [ -f "${SEMGREP_FILE}" ]; then
-                                echo "📊 Resumen de hallazgos Semgrep:"
-                                jq '.results | group_by(.severity) | map({severity: .[0].severity, count: length})' ${SEMGREP_FILE} || echo "No se pudieron procesar los hallazgos"
-                            else
-                                echo "⚠️ Archivo Semgrep no encontrado."
-                            fi
-                        '''
                     }
                     catch (err) {                                        
                         unstable(message: "Findings found") // marcamos el build como inestable si semgrep encuentra vulnerabilidades o si queremos bloquearlo podemos usar "error" en lugar de "unstable"
@@ -63,7 +55,7 @@ pipeline {
         always {
             sh 'echo "📦 Archivando reporte Semgrep..."'
             sh 'ls -l' // Verificación de archivos generados
-            archiveArtifacts artifacts: 'semgrep.json', fingerprint: true, onlyIfSuccessful: false // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
+            archiveArtifacts artifacts: 'semgrep.json', fingerprint: true, allowEmptyArchive: false // guardamos el reporte de semgrep como artefacto del build para que persista en Jenkins
         }
     }
 }

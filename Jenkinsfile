@@ -5,7 +5,7 @@ pipeline {
             agent {
                 docker {
                     image 'python:3.11-slim' //utilizamos la imagen que contine python y pip instalados
-                    args "-u root -v ${WORKSPACE}:${WORKSPACE} -w ${WORKSPACE}" //para ejecutar los comandos como root y evitar problemas de permisos (esto es una mala práctica y lo ideal sería crear una imagen con las herramientas necesarias ya instaladas)
+                    args "-u root -v ${env.WORKSPACE}:${env.WORKSPACE} -w ${env.WORKSPACE}" //para ejecutar los comandos como root y evitar problemas de permisos (esto es una mala práctica y lo ideal sería crear una imagen con las herramientas necesarias ya instaladas)
                 }
             }
             steps {
@@ -14,7 +14,8 @@ pipeline {
                     sh 'git config --global --add safe.directory $(pwd)'
                     sh 'pip install -q semgrep'
                     try {
-                        sh 'semgrep scan --json-output=semgrep.json --error .' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
+                        sh 'semgrep scan --json-output=${WORKSPACE}/semgrep.json --error .' // con el flag --json-output generamos un reporte en formato json y con --error hacemos que semgrep devuelva un código de salida distinto de 0 si encuentra alguna vulnerabilidad
+                        sh 'ls -lah ${WORKSPACE}'
                     }
                     catch (err) {                                        
                         unstable(message: "Findings found") // marcamos el build como inestable si semgrep encuentra vulnerabilidades o si queremos bloquearlo podemos usar "error" en lugar de "unstable"
